@@ -1,0 +1,18 @@
+{
+  "name": "techstore-community-chat",
+  "version": "1.0.0",
+  "description": "TechStore Community Chat Only",
+  "main": "server-minimal.js",
+  "scripts": {
+    "start": "node server-minimal.js",
+    "dev": "nodemon server-minimal.js"
+  },
+  "engines": {
+    "node": ">=18.x"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3"
+  }
+}

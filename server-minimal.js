@@ -1,5 +1,6 @@
 const express = require('express');
 const fs = require('fs/promises');
+const path = require('path');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -9,7 +10,29 @@ const PORT = process.env.PORT || 3000;
 // ==================== Middleware ====================
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+
+// ✅ استخدام المسار المطلق للملفات الثابتة
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath));
+
+console.log('📁 Public directory:', publicPath);
+
+// ==================== Test Endpoint ====================
+app.get('/test-files', async (req, res) => {
+    try {
+        const files = await fs.readdir(publicPath);
+        res.json({
+            publicDir: publicPath,
+            files: files,
+            htmlExists: files.includes('community-chat.html')
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            error: error.message,
+            publicDir: publicPath 
+        });
+    }
+});
 
 // ==================== Root Redirect ====================
 app.get('/', (req, res) => {
@@ -235,6 +258,7 @@ app.get('/api/community-chat/stats', async (req, res) => {
 
 // ==================== 404 Handler ====================
 app.use((req, res) => {
+    console.log('❌ 404 Not Found:', req.path);
     res.status(404).send(`
         <!DOCTYPE html>
         <html lang="ar" dir="rtl">
@@ -262,6 +286,12 @@ app.use((req, res) => {
                 }
                 h1 { font-size: 72px; margin: 0; color: #8b5cf6; }
                 p { font-size: 20px; margin: 20px 0; }
+                code { 
+                    background: rgba(0,0,0,0.3); 
+                    padding: 5px 10px; 
+                    border-radius: 5px;
+                    color: #f59e0b;
+                }
                 a {
                     display: inline-block;
                     padding: 12px 30px;
@@ -273,6 +303,14 @@ app.use((req, res) => {
                     transition: transform 0.3s;
                 }
                 a:hover { transform: translateY(-2px); }
+                .debug {
+                    margin-top: 30px;
+                    padding: 20px;
+                    background: rgba(0,0,0,0.3);
+                    border-radius: 10px;
+                    font-size: 14px;
+                    text-align: left;
+                }
             </style>
         </head>
         <body>
@@ -281,6 +319,12 @@ app.use((req, res) => {
                 <p>الصفحة التي تبحث عنها غير موجودة</p>
                 <p>المسار المطلوب: <code>${req.path}</code></p>
                 <a href="/community-chat.html">الذهاب إلى صفحة الدردشة</a>
+                <div class="debug">
+                    <strong>معلومات التشخيص:</strong><br>
+                    Public Directory: ${publicPath}<br>
+                    Requested: ${req.path}<br>
+                    Method: ${req.method}
+                </div>
             </div>
         </body>
         </html>
@@ -292,6 +336,7 @@ async function initializeCommunityFiles() {
     try {
         try {
             await fs.access(COMMUNITY_MESSAGES_FILE);
+            console.log('✅ ملف الرسائل موجود');
         } catch {
             await writeCommunityMessages({ messages: [] });
             console.log('✅ تم إنشاء ملف community-messages.json');
@@ -299,10 +344,26 @@ async function initializeCommunityFiles() {
         
         try {
             await fs.access(COMMUNITY_USERS_FILE);
+            console.log('✅ ملف المستخدمين موجود');
         } catch {
             await writeCommunityUsers({ users: [] });
             console.log('✅ تم إنشاء ملف community-users.json');
         }
+        
+        // ✅ التحقق من وجود مجلد public
+        try {
+            const files = await fs.readdir(publicPath);
+            console.log('✅ ملفات في public/:', files);
+            
+            if (files.includes('community-chat.html')) {
+                console.log('✅ community-chat.html موجود في public/');
+            } else {
+                console.error('❌ community-chat.html غير موجود في public/');
+            }
+        } catch (error) {
+            console.error('❌ خطأ في قراءة مجلد public:', error.message);
+        }
+        
     } catch (error) {
         console.error('❌ خطأ في إنشاء ملفات المجتمع:', error);
     }
@@ -312,7 +373,9 @@ async function initializeCommunityFiles() {
 app.listen(PORT, async () => {
     console.log('='.repeat(50));
     console.log('🚀 السيرفر يعمل على المنفذ:', PORT);
+    console.log('📁 مسار المجلد العام:', publicPath);
     console.log('💬 Community Chat: /community-chat.html');
+    console.log('🔍 اختبار الملفات: /test-files');
     console.log('🌐 Environment:', process.env.NODE_ENV || 'development');
     console.log('='.repeat(50));
     

@@ -11,15 +11,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// ✅ توجيه الصفحة الرئيسية
+// ==================== Root Redirect ====================
 app.get('/', (req, res) => {
     res.redirect('/community-chat.html');
 });
 
 const COMMUNITY_MESSAGES_FILE = './community-messages.json';
 const COMMUNITY_USERS_FILE = './community-users.json';
-
-// ... باقي الكود كما هو
 
 // ==================== Helper Functions ====================
 async function readCommunityMessages() {
@@ -235,6 +233,60 @@ app.get('/api/community-chat/stats', async (req, res) => {
     }
 });
 
+// ==================== 404 Handler ====================
+app.use((req, res) => {
+    res.status(404).send(`
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>404 - الصفحة غير موجودة</title>
+            <style>
+                body {
+                    font-family: 'Cairo', sans-serif;
+                    background: linear-gradient(135deg, #0a0a0f 0%, #1a0f2e 100%);
+                    color: #e0e0e0;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                }
+                .container {
+                    text-align: center;
+                    padding: 40px;
+                    background: rgba(26, 15, 46, 0.6);
+                    border-radius: 20px;
+                    border: 2px solid rgba(138, 43, 226, 0.3);
+                }
+                h1 { font-size: 72px; margin: 0; color: #8b5cf6; }
+                p { font-size: 20px; margin: 20px 0; }
+                a {
+                    display: inline-block;
+                    padding: 12px 30px;
+                    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 10px;
+                    margin-top: 20px;
+                    transition: transform 0.3s;
+                }
+                a:hover { transform: translateY(-2px); }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>404</h1>
+                <p>الصفحة التي تبحث عنها غير موجودة</p>
+                <p>المسار المطلوب: <code>${req.path}</code></p>
+                <a href="/community-chat.html">الذهاب إلى صفحة الدردشة</a>
+            </div>
+        </body>
+        </html>
+    `);
+});
+
 // ==================== إنشاء ملفات JSON ====================
 async function initializeCommunityFiles() {
     try {
@@ -259,8 +311,9 @@ async function initializeCommunityFiles() {
 // ==================== بدء السيرفر ====================
 app.listen(PORT, async () => {
     console.log('='.repeat(50));
-    console.log('🚀 السيرفر يعمل على: http://localhost:' + PORT);
-    console.log('💬 Community Chat: http://localhost:' + PORT + '/community-chat.html');
+    console.log('🚀 السيرفر يعمل على المنفذ:', PORT);
+    console.log('💬 Community Chat: /community-chat.html');
+    console.log('🌐 Environment:', process.env.NODE_ENV || 'development');
     console.log('='.repeat(50));
     
     await initializeCommunityFiles();

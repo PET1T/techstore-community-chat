@@ -11,8 +11,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// ✅ توجيه الصفحة الرئيسية
+app.get('/', (req, res) => {
+    res.redirect('/community-chat.html');
+});
+
 const COMMUNITY_MESSAGES_FILE = './community-messages.json';
 const COMMUNITY_USERS_FILE = './community-users.json';
+
+// ... باقي الكود كما هو
 
 // ==================== Helper Functions ====================
 async function readCommunityMessages() {

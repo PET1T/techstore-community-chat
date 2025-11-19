@@ -11,32 +11,15 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// ✅ استخدام المسار المطلق للملفات الثابتة
 const publicPath = path.join(__dirname, 'public');
 app.use(express.static(publicPath));
 
 console.log('📁 Public directory:', publicPath);
 
-// ==================== Test Endpoint ====================
-app.get('/test-files', async (req, res) => {
-    try {
-        const files = await fs.readdir(publicPath);
-        res.json({
-            publicDir: publicPath,
-            files: files,
-            htmlExists: files.includes('community-chat.html')
-        });
-    } catch (error) {
-        res.status(500).json({ 
-            error: error.message,
-            publicDir: publicPath 
-        });
-    }
-});
-
-// ==================== Root Redirect ====================
-app.get('/', (req, res) => {
-    res.redirect('/community-chat.html');
+// Logging middleware
+app.use((req, res, next) => {
+    console.log(`📥 ${req.method} ${req.path}`);
+    next();
 });
 
 const COMMUNITY_MESSAGES_FILE = './community-messages.json';
@@ -68,6 +51,25 @@ async function readCommunityUsers() {
 async function writeCommunityUsers(data) {
     await fs.writeFile(COMMUNITY_USERS_FILE, JSON.stringify(data, null, 2));
 }
+
+// ==================== Test Endpoint ====================
+app.get('/test-files', async (req, res) => {
+    try {
+        const files = await fs.readdir(publicPath);
+        res.json({
+            success: true,
+            publicDir: publicPath,
+            files: files,
+            htmlExists: files.includes('community-chat.html')
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            success: false,
+            error: error.message,
+            publicDir: publicPath 
+        });
+    }
+});
 
 // ==================== Community Chat API ====================
 
@@ -107,7 +109,6 @@ app.post('/api/community-chat/messages', async (req, res) => {
         
         data.messages.push(newMessage);
         
-        // الاحتفاظ بآخر 500 رسالة فقط
         if (data.messages.length > 500) {
             data.messages = data.messages.slice(-500);
         }
@@ -174,7 +175,6 @@ app.post('/api/community-chat/users/activity', async (req, res) => {
             data.users[userIndex] = userInfo;
         }
         
-        // إزالة المستخدمين غير النشطين (أكثر من 2 دقيقة)
         const now = Date.now();
         data.users = data.users.filter(u => 
             now - u.lastActivity < 2 * 60 * 1000
@@ -215,7 +215,7 @@ app.get('/api/community-chat/users/online', async (req, res) => {
     }
 });
 
-// مسح جميع الرسائل (للإدارة)
+// مسح جميع الرسائل
 app.delete('/api/community-chat/messages', async (req, res) => {
     try {
         await writeCommunityMessages({ messages: [] });
@@ -256,7 +256,13 @@ app.get('/api/community-chat/stats', async (req, res) => {
     }
 });
 
-// ==================== 404 Handler ====================
+// ==================== Root Redirect (قبل 404 مباشرة!) ====================
+app.get('/', (req, res) => {
+    console.log('🏠 Redirecting root to /community-chat.html');
+    res.redirect('/community-chat.html');
+});
+
+// ==================== 404 Handler (في الآخر!) ====================
 app.use((req, res) => {
     console.log('❌ 404 Not Found:', req.path);
     res.status(404).send(`
@@ -283,48 +289,40 @@ app.use((req, res) => {
                     background: rgba(26, 15, 46, 0.6);
                     border-radius: 20px;
                     border: 2px solid rgba(138, 43, 226, 0.3);
+                    max-width: 600px;
                 }
                 h1 { font-size: 72px; margin: 0; color: #8b5cf6; }
-                p { font-size: 20px; margin: 20px 0; }
+                p { font-size: 18px; margin: 15px 0; }
                 code { 
-                    background: rgba(0,0,0,0.3); 
-                    padding: 5px 10px; 
-                    border-radius: 5px;
+                    background: rgba(0,0,0,0.4); 
+                    padding: 5px 12px; 
+                    border-radius: 6px;
                     color: #f59e0b;
+                    font-size: 16px;
                 }
                 a {
                     display: inline-block;
-                    padding: 12px 30px;
+                    padding: 15px 35px;
                     background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
                     color: white;
                     text-decoration: none;
-                    border-radius: 10px;
-                    margin-top: 20px;
-                    transition: transform 0.3s;
+                    border-radius: 12px;
+                    margin-top: 25px;
+                    transition: transform 0.3s, box-shadow 0.3s;
+                    font-weight: 600;
                 }
-                a:hover { transform: translateY(-2px); }
-                .debug {
-                    margin-top: 30px;
-                    padding: 20px;
-                    background: rgba(0,0,0,0.3);
-                    border-radius: 10px;
-                    font-size: 14px;
-                    text-align: left;
+                a:hover { 
+                    transform: translateY(-3px); 
+                    box-shadow: 0 8px 20px rgba(138, 43, 226, 0.4);
                 }
             </style>
         </head>
         <body>
             <div class="container">
                 <h1>404</h1>
-                <p>الصفحة التي تبحث عنها غير موجودة</p>
+                <p>⚠️ الصفحة التي تبحث عنها غير موجودة</p>
                 <p>المسار المطلوب: <code>${req.path}</code></p>
-                <a href="/community-chat.html">الذهاب إلى صفحة الدردشة</a>
-                <div class="debug">
-                    <strong>معلومات التشخيص:</strong><br>
-                    Public Directory: ${publicPath}<br>
-                    Requested: ${req.path}<br>
-                    Method: ${req.method}
-                </div>
+                <a href="/community-chat.html">🏠 الذهاب إلى صفحة الدردشة</a>
             </div>
         </body>
         </html>
@@ -350,34 +348,35 @@ async function initializeCommunityFiles() {
             console.log('✅ تم إنشاء ملف community-users.json');
         }
         
-        // ✅ التحقق من وجود مجلد public
         try {
             const files = await fs.readdir(publicPath);
-            console.log('✅ ملفات في public/:', files);
+            console.log('✅ ملفات في public/:', files.join(', '));
             
             if (files.includes('community-chat.html')) {
-                console.log('✅ community-chat.html موجود في public/');
+                console.log('✅✅ community-chat.html موجود ويعمل!');
             } else {
-                console.error('❌ community-chat.html غير موجود في public/');
+                console.error('❌❌ community-chat.html غير موجود في public/');
             }
         } catch (error) {
             console.error('❌ خطأ في قراءة مجلد public:', error.message);
         }
         
     } catch (error) {
-        console.error('❌ خطأ في إنشاء ملفات المجتمع:', error);
+        console.error('❌ خطأ في التهيئة:', error);
     }
 }
 
 // ==================== بدء السيرفر ====================
 app.listen(PORT, async () => {
-    console.log('='.repeat(50));
+    console.log('='.repeat(60));
     console.log('🚀 السيرفر يعمل على المنفذ:', PORT);
     console.log('📁 مسار المجلد العام:', publicPath);
-    console.log('💬 Community Chat: /community-chat.html');
-    console.log('🔍 اختبار الملفات: /test-files');
-    console.log('🌐 Environment:', process.env.NODE_ENV || 'development');
-    console.log('='.repeat(50));
+    console.log('🌐 الروابط المتاحة:');
+    console.log('   - الصفحة الرئيسية: /');
+    console.log('   - صفحة الدردشة: /community-chat.html');
+    console.log('   - اختبار الملفات: /test-files');
+    console.log('   - API الرسائل: /api/community-chat/messages');
+    console.log('='.repeat(60));
     
     await initializeCommunityFiles();
 });
